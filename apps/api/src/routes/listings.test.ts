@@ -138,6 +138,25 @@ describe("POST /listings/recompute-flags", () => {
 	});
 });
 
+describe("CORS", () => {
+	// Browsers send this "preflight" before a cross-origin PATCH. If PATCH isn't allowed,
+	// the browser never sends the real request (inject() alone wouldn't notice).
+	it("allows the dashboard to PATCH and DELETE", async () => {
+		const res = await app.inject({
+			method: "OPTIONS",
+			url: "/listings/1/flag",
+			headers: {
+				origin: "http://localhost:5173",
+				"access-control-request-method": "PATCH"
+			}
+		});
+		expect(res.statusCode).toBe(204);
+		const allowed = String(res.headers["access-control-allow-methods"]);
+		expect(allowed).toContain("PATCH");
+		expect(allowed).toContain("DELETE");
+	});
+});
+
 describe("PATCH and DELETE /listings/:id", () => {
 	it("returns 409 when changing url to one that is taken", async () => {
 		const a = await createBook();
