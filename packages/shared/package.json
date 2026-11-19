@@ -1,5 +1,5 @@
 {
-	"name": "@listingwatch/shared",
+	"name": "@listing-watch/shared",
 	"version": "0.0.1",
 	"type": "module",
 	"main": "./src/index.ts",
