@@ -1,0 +1,21 @@
+{
+	"name": "@listing-watch/scraper",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"start": "tsx src/index.ts",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@listing-watch/shared": "workspace:*",
+		"puppeteer": "^25.18.1"
+	},
+	"devDependencies": {
+		"@types/node": "^22.20.5",
+		"tsx": "^4.23.15",
+		"typescript": "^7.0.2",
+		"vitest": "^5.1.1"
+	}
+}
