@@ -1,7 +1,7 @@
 import type { ListingInput } from "@listing-watch/shared";
 import { scrapeBooks } from "./scrape";
 import { toListingInput } from "./parse";
-import { postListings } from "./post";
+import { postListings, recomputeFlags } from "./post";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:3001";
 
@@ -28,5 +28,11 @@ const result = await postListings(listings, API_URL);
 console.log(
 	`Done. Scraped ${raw.length}, valid ${listings.length}. ` +
 		`Created ${result.created}, updated ${result.updated}, failed ${result.failed}.`
+);
+
+// Flag rules compare listings to each other, so run them once after everything is saved
+const flags = await recomputeFlags(API_URL);
+console.log(
+	`Flag rules: checked ${flags.checked}, ${flags.withReasons} with reasons, ${flags.changed} changed.`
 );
 if (result.failed > 0) process.exitCode = 1;

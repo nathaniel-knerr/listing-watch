@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { ListingInput } from "@listing-watch/shared";
-import { postListings } from "./post";
+import { postListings, recomputeFlags } from "./post";
 
 const listing = (n: number): ListingInput => ({
 	title: `Book ${n}`,
@@ -24,5 +24,26 @@ describe("postListings", () => {
 			"http://api/listings",
 			expect.objectContaining({ method: "POST", body: JSON.stringify(listing(1)) })
 		);
+	});
+});
+
+describe("recomputeFlags", () => {
+	it("POSTs to the recompute endpoint and validates the response", async () => {
+		const fakeFetch = vi.fn(
+			async () => new Response(JSON.stringify({ checked: 3, withReasons: 1, changed: 1 }), { status: 200 })
+		);
+		const result = await recomputeFlags("http://api", fakeFetch);
+		expect(result).toEqual({ checked: 3, withReasons: 1, changed: 1 });
+		expect(fakeFetch).toHaveBeenCalledWith("http://api/listings/recompute-flags", { method: "POST" });
+	});
+
+	it("throws on an error status", async () => {
+		const fakeFetch = vi.fn(async () => new Response("boom", { status: 500 }));
+		await expect(recomputeFlags("http://api", fakeFetch)).rejects.toThrow(/500/);
+	});
+
+	it("throws if the response shape is wrong", async () => {
+		const fakeFetch = vi.fn(async () => new Response(JSON.stringify({ nope: true }), { status: 200 }));
+		await expect(recomputeFlags("http://api", fakeFetch)).rejects.toThrow();
 	});
 });

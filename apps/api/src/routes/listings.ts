@@ -7,7 +7,8 @@ import {
 	IdParamsSchema,
 	ListingQuerySchema
 } from "@listing-watch/shared";
-import { ListingModel } from "../db";
+import { ListingModel, sequelize } from "../db";
+import { computeFlagReasons, nextStatus } from "../flagging/rules";
 
 // Validate `data` with a shared Zod schema. On failure, send a 400 and return null
 // so the route can stop. Keeps every route's validation identical.
@@ -53,6 +54,27 @@ export async function listingRoutes(app: FastifyInstance) {
 		}
 		const created = await ListingModel.create(input);
 		return reply.code(201).send(created);
+	});
+
+	// RE-RUN FLAG RULES across the whole table. The rules compare listings to each other
+	// (median price, duplicate titles), so they can't run on one listing at a time.
+	// The scraper calls this once after each run.
+	app.post("/listings/recompute-flags", async () => {
+		const listings = await ListingModel.findAll();
+		const reasonsById = computeFlagReasons(listings);
+		let changed = 0;
+		await sequelize.transaction(async (transaction) => {
+			for (const listing of listings) {
+				const reasons = reasonsById.get(listing.id) ?? [];
+				const status = nextStatus(listing.status, listing.flagReasons, reasons);
+				const sameReasons = JSON.stringify(reasons) === JSON.stringify(listing.flagReasons);
+				if (sameReasons && status === listing.status) continue; // skip no-op writes
+				await listing.update({ flagReasons: reasons, status }, { transaction });
+				changed++;
+			}
+		});
+		const withReasons = [...reasonsById.values()].filter((r) => r.length > 0).length;
+		return { checked: listings.length, withReasons, changed };
 	});
 
 	// UPDATE scraped fields by id

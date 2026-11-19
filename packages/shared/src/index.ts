@@ -42,9 +42,17 @@ export const ListingQuerySchema = z.object({
 	flagged: z.enum(["true", "false"]).optional()
 });
 
+// Response of POST /listings/recompute-flags
+export const RecomputeResultSchema = z.object({
+	checked: z.number().int(),
+	withReasons: z.number().int(),
+	changed: z.number().int()
+});
+
 // TypeScript types generated from the rules, so you never write them twice
 export type ListingStatus = z.infer<typeof ListingStatusSchema>;
 export type ListingInput = z.infer<typeof ListingInputSchema>;
 export type Listing = z.infer<typeof ListingSchema>;
 export type ListingUpdate = z.infer<typeof ListingUpdateSchema>;
 export type FlagUpdate = z.infer<typeof FlagUpdateSchema>;
+export type RecomputeResult = z.infer<typeof RecomputeResultSchema>;

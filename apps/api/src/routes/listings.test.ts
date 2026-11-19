@@ -108,6 +108,36 @@ describe("PATCH /listings/:id/flag", () => {
 	});
 });
 
+describe("POST /listings/recompute-flags", () => {
+	const at = (n: number) => `https://books.toscrape.com/catalogue/book-${n}/index.html`;
+
+	it("flags cheap and duplicate listings but leaves 'reviewed' alone", async () => {
+		await createBook({ ...book, title: "Fair One", price: 40, url: at(1) });
+		await createBook({ ...book, title: "Fair Two", price: 42, url: at(2) });
+		const cheap = await createBook({ ...book, title: "Bargain", price: 10, url: at(3) });
+		const dupA = await createBook({ ...book, title: "Twin Title", price: 41, url: at(4) });
+		const dupB = await createBook({ ...book, title: "Twin Title!", price: 39, url: at(5) });
+		await app.inject({ method: "PATCH", url: `/listings/${dupB.id}/flag`, payload: { status: "reviewed" } });
+
+		const res = await app.inject({ method: "POST", url: "/listings/recompute-flags" });
+		expect(res.statusCode).toBe(200);
+		expect(res.json()).toEqual({ checked: 5, withReasons: 3, changed: 3 });
+
+		const get = async (id: number) =>
+			ListingSchema.parse((await app.inject({ method: "GET", url: `/listings/${id}` })).json());
+		expect(await get(cheap.id)).toMatchObject({ status: "flagged" });
+		expect((await get(cheap.id)).flagReasons[0]).toMatch(/under 50% of the/);
+		expect(await get(dupA.id)).toMatchObject({ status: "flagged" });
+		const reviewed = await get(dupB.id);
+		expect(reviewed.status).toBe("reviewed"); // human decision kept
+		expect(reviewed.flagReasons).toHaveLength(1); // but reasons still recorded
+
+		// Running again with no data changes writes nothing
+		const again = await app.inject({ method: "POST", url: "/listings/recompute-flags" });
+		expect(again.json()).toMatchObject({ changed: 0 });
+	});
+});
+
 describe("PATCH and DELETE /listings/:id", () => {
 	it("returns 409 when changing url to one that is taken", async () => {
 		const a = await createBook();

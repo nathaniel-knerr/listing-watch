@@ -1,4 +1,4 @@
-import type { ListingInput } from "@listing-watch/shared";
+import { RecomputeResultSchema, type ListingInput, type RecomputeResult } from "@listing-watch/shared";
 
 export interface PostResult {
 	created: number;
@@ -29,4 +29,14 @@ export async function postListings(
 		}
 	}
 	return result;
+}
+
+// Ask the API to re-run the flag rules across all listings (call once, after posting)
+export async function recomputeFlags(
+	apiUrl: string,
+	fetchFn: typeof fetch = fetch
+): Promise<RecomputeResult> {
+	const res = await fetchFn(`${apiUrl}/listings/recompute-flags`, { method: "POST" });
+	if (!res.ok) throw new Error(`recompute-flags failed (${res.status}): ${await res.text()}`);
+	return RecomputeResultSchema.parse(await res.json());
 }
