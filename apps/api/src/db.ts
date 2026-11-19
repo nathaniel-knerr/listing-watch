@@ -1,16 +1,25 @@
-import { Sequelize, DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional } from "sequelize";
+import {
+	Sequelize,
+	DataTypes,
+	Model,
+	type InferAttributes,
+	type InferCreationAttributes,
+	type CreationOptional
+} from "sequelize";
+import type { ListingStatus } from "@listing-watch/shared";
 
-// Connect to a database file (created automatically)
-export const sequalize = new Sequelize({
+// Connect to a database file (created automatically).
+// DB_PATH lets tests use ":memory:" so they never touch the real file.
+export const sequelize = new Sequelize({
 	dialect: "sqlite",
-	storage: "listing-watch.sqlite",
+	storage: process.env.DB_PATH ?? "listing-watch.sqlite",
 	logging: false
 });
 
 // The TypeScript shape of one row
 export class ListingModel extends Model<
 	InferAttributes<ListingModel>,
-	InferAttributes<ListingModel>
+	InferCreationAttributes<ListingModel>
 > {
 	declare id: CreationOptional<number>;
 	declare title: string;
@@ -18,23 +27,29 @@ export class ListingModel extends Model<
 	declare rating: number;
 	declare inStock: boolean;
 	declare url: string;
-	declare status: CreationOptional<"ok" | "flagged" | "reviewed">;
+	declare status: CreationOptional<ListingStatus>;
+	declare flagReasons: CreationOptional<string[]>;
 	declare notes: CreationOptional<string | null>;
-	declare flagReason: CreationOptional<string | null>
+	declare createdAt: CreationOptional<Date>;
+	declare updatedAt: CreationOptional<Date>;
 }
 
 // The actual table columns
 ListingModel.init(
 	{
-		id: { type: DataTypes.INTEGER, autoIncrement, primaryKey: true },
+		id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
 		title: { type: DataTypes.STRING, allowNull: false },
 		price: { type: DataTypes.FLOAT, allowNull: false },
 		rating: { type: DataTypes.INTEGER, allowNull: false },
 		inStock: { type: DataTypes.BOOLEAN, allowNull: false },
 		url: { type: DataTypes.STRING, allowNull: false, unique: true },
 		status: { type: DataTypes.STRING, allowNull: false, defaultValue: "ok" },
-		notes: { type: DataTypes.TEXT, allowNull: true },
-		flagReason: { type: DataTypes.TEXT, allowNull: true }
+		// SQLite has no array type; Sequelize stores JSON as text and parses it back
+		flagReasons: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
+		// defaultValue null so a freshly created row includes `notes: null` in its JSON
+		notes: { type: DataTypes.TEXT, allowNull: true, defaultValue: null },
+		createdAt: DataTypes.DATE,
+		updatedAt: DataTypes.DATE
 	},
-	{ sequelize, tableName: "listings", timestamps: false }
+	{ sequelize, tableName: "listings", timestamps: true }
 );
